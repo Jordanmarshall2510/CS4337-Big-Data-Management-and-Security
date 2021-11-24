@@ -19,7 +19,8 @@ def get_graphs(date):
     df.drop(['FIPS', 'Admin2','Last_Update','Province_State', 'Combined_Key'], axis=1, inplace=True)
     df.rename(columns={'Country_Region': "Country"}, inplace=True)
     world = df.groupby("Country")['Confirmed','Active','Recovered','Deaths'].sum().reset_index()
-    world.head(10)
+    
+    dailyStatistics = [world['Confirmed'].sum(), world['Deaths'].sum(), world['Confirmed'].mean(), world['Deaths'].mean()]
 
     data = world.drop(["Active", "Recovered"], axis=1)
     figScatter = px.scatter(data, x="Confirmed", y="Deaths", hover_data=["Country"], color="Confirmed", title="Interactive Scatter Map w/ Confirmed and Death Cases", template="plotly_dark")
@@ -38,7 +39,7 @@ def get_graphs(date):
     ### Generate a Barplot
     barplotDeaths = px.bar(top_20, x='Deaths', y='Country', template="plotly_dark")
     
-    return figScatter, figMap, barplotConfirmed, barplotDeaths
+    return figScatter, figMap, barplotConfirmed, barplotDeaths, dailyStatistics
 
 external_stylesheets =  ['https://codepen.io/chriddyp/pen/bWLwgP.css', dbc.themes.DARKLY]
 
@@ -54,8 +55,8 @@ app.layout = html.Div(children=[
                         id='date-picker',
                         display_format = 'DD/MM/YYYY',
                         min_date_allowed=datetime.date(2020, 3, 22),
-                        max_date_allowed= datetime.date.today() - datetime.timedelta(days=2),
-                        date= datetime.date.today() - datetime.timedelta(days=2),
+                        max_date_allowed= datetime.date.today() - datetime.timedelta(days=1),
+                        date= datetime.date.today() - datetime.timedelta(days=1),
                         style={'font-size':'15px'},
                     ),
                 ], className='row', style={'text-align':'center'}) ,
@@ -111,11 +112,20 @@ def update_output(date_value):
             path = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/{}.csv'.format(date_string)
             pd.read_csv(path)
         except:
-              return selection + 'Data Not Available', px.bar(), px.bar(), px.bar(), px.bar(), 
+              return 'Data Not Available', px.bar(), px.bar(), px.bar(), px.bar(), 
 
-        scatterPlot, mapPlot, barConfirmed, barDeaths = get_graphs(date_string)
+        scatterPlot, mapPlot, barConfirmed, barDeaths, graphStatistics= get_graphs(date_string)
+
+        statistics = html.Table([
+                                    html.Tr([html.Td("Date Selected: "), html.Td(date_text_string)]),
+                                    html.Tr([html.Td("Total Confirmed: "), html.Td(f"{graphStatistics[0]:,}")]),
+                                    html.Tr([html.Td("Total Deaths: "), html.Td(f"{graphStatistics[1]:,}")]),
+                                    html.Tr([html.Td("Mean Confirmed: "), html.Td(f"{round(graphStatistics[2],2):,}")]),
+                                    html.Tr([html.Td("Mean Deaths: "), html.Td(f"{round(graphStatistics[3],2):,}")]),
+                                    html.Tr([html.Td("Ratio (Confirmed:Deaths): "), html.Td(f"{round(graphStatistics[0]/graphStatistics[1],2):,}")]),                  
+                    ], style={'marginLeft': 'auto', 'marginRight': 'auto'}),
         
-        return selection + date_text_string, scatterPlot, mapPlot, barConfirmed, barDeaths
+        return statistics, scatterPlot, mapPlot, barConfirmed, barDeaths
 
 if __name__ == '__main__':
     app.run_server(debug=True)
