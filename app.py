@@ -30,14 +30,15 @@ def get_graphs(date):
             inplace=True)
 
     # Rename headers
-    df.rename(columns={'Country_Region': "Country"}, inplace=True)
+    df.rename(columns={'Country_Region': "Country", 'Incident_Rate': 'Incident'}, inplace=True)
 
     # Order data by country
     world = df.groupby("Country")[
         'Confirmed',
         'Active',
         'Recovered',
-        'Deaths'].sum().reset_index()
+        'Deaths',
+        'Incident'].sum().reset_index()
 
     # Gather daily statistics including total confirmed cases, total death
     # cases, mean confirmed cases, mean death cases and ratio between total
@@ -103,8 +104,28 @@ def get_graphs(date):
         names='Country',
         template="plotly_dark")
 
+    # Find top 20 countries with highest incident rates
+    top_20 = world.sort_values(by=['Incident'], ascending=False).head(20)
+
+    # Plot bar chart of incident rate
+    incidentHighRate = px.bar(
+        top_20,
+        x='Incident',
+        y='Country',
+        template="plotly_dark")
+
+    # Find top 20 countries with highest incident rates
+    top_20 = world.sort_values(by=['Incident'], ascending=True).head(20)
+
+    # Plot bar chart of incident rate
+    incidentLowRate = px.bar(
+        top_20,
+        x='Incident',
+        y='Country',
+        template="plotly_dark")
+
     # Return all graphs and statistics
-    return figScatter, figMap, barplotConfirmed, barplotDeaths, pieConfirmed, pieDeath, dailyStatistics
+    return figScatter, figMap, barplotConfirmed, barplotDeaths, pieConfirmed, pieDeath, incidentHighRate, incidentLowRate, dailyStatistics
 
 
 # CSS for dark theme and bootstrap functions
@@ -202,6 +223,26 @@ app.layout = html.Div(children=[
             ),
         ], className='six columns', style={'text-align': 'center'}),
     ], className='row', style={'padding': '15px'}),
+
+    html.Div([
+
+        # Highest Incident Rate
+        html.Div([
+            html.H2(children='Top 20 Highest Incident Rate'),
+            dcc.Graph(
+                id='incidentHighRate',
+            ),
+        ], className='six columns', style={'text-align': 'center'}),
+
+        # Lowest Incident Rate
+        html.Div([
+            # Incident Rate
+            html.H2(children='Top 20 Lowest Incident Rate'),
+            dcc.Graph(
+                id='incidentLowRate',
+            ),
+        ], className='six columns', style={'text-align': 'center'}),
+    ], className='row', style={'padding': '15px'}),
 ])
 
 # Callbacks for user input (Updates data)
@@ -215,6 +256,8 @@ app.layout = html.Div(children=[
     Output('barDeaths', 'figure'),
     Output('pieConfirmed', 'figure'),
     Output('pieDeaths', 'figure'),
+    Output('incidentHighRate', 'figure'),
+    Output('incidentLowRate', 'figure'),
     Input('date-picker', 'date'))
 def update_output(date_value):
 
@@ -231,10 +274,10 @@ def update_output(date_value):
                 date_string)
             pd.read_csv(path)
         except BaseException:
-            return 'Data Not Available', px.bar(), px.bar(), px.bar(), px.bar(),
+            return 'Data Not Available', px.bar(), px.bar(), px.bar(), px.bar(), px.bar(), px.bar(), px.bar(), px.bar()
 
         # Get graphs using user's selected date
-        scatterPlot, mapPlot, barConfirmed, barDeaths, pieConfirmed, pieDeath, graphStatistics = get_graphs(
+        scatterPlot, mapPlot, barConfirmed, barDeaths, pieConfirmed, pieDeath, incidentHighRate, incidentLowRate, graphStatistics = get_graphs(
             date_string)
 
         # Display daily statistics gathered from get_graph()
@@ -248,7 +291,7 @@ def update_output(date_value):
         ], style={'marginLeft': 'auto', 'marginRight': 'auto'}),
 
         # Return graphs and statistics as Outputs
-        return statistics, scatterPlot, mapPlot, barConfirmed, barDeaths, pieConfirmed, pieDeath
+        return statistics, scatterPlot, mapPlot, barConfirmed, barDeaths, pieConfirmed, pieDeath, incidentHighRate, incidentLowRate
 
 
 # Main loop to run live server
